@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Generator — Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #f8f6ef;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { max-width: 700px; text-align: center; }
+        h1 { font-size: 2.2rem; color: #1a0a00; margin-bottom: 0.3rem; }
+        .subtitle { color: #6b5a3e; margin-bottom: 2.5rem; font-size: 0.95rem; }
+        .cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+        .card {
+            background: #fff;
+            border: 2px solid #c9a227;
+            border-radius: 10px;
+            padding: 1.8rem 1rem;
+            text-decoration: none;
+            color: #5a4a2e;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 6px 16px #c9a22740; }
+        .card-icon { font-size: 2.2rem; margin-bottom: 0.6rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 0.4rem; color: #8b6914; }
+        .card p { font-size: 0.82rem; line-height: 1.4; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Certificate Generator</h1>
+        <div class="cards">
+            <a href="/single" class="card">
+                <div class="card-icon">&#x1F4DD;</div>
+                <h2>Single Entry</h2>
+                <p>Fill in one person's details and generate a certificate PDF</p>
+            </a>
+            <a href="/bulk" class="card">
+                <div class="card-icon">&#x1F4EA;</div>
+                <h2>Bulk Upload</h2>
+                <p>Upload a CSV of participants and generate all certificates at once</p>
+            </a>
+            <a href="/editor" class="card">
+                <div class="card-icon">&#x270F;</div>
+                <h2>Template Editor</h2>
+                <p>Drag-and-drop placeholders and adjust text sizes on the template</p>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

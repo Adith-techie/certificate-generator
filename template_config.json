@@ -1,0 +1,45 @@
+{
+  "department": {
+    "color": "#d0320b",
+    "font_name": "arialbi.ttf",
+    "font_size": 17,
+    "sample_text": "CSE",
+    "x_pct": 0.36831187102754237,
+    "y_pct": 0.43220858193614
+  },
+  "extra_signatures": [],
+  "extra_texts": [],
+  "name": {
+    "color": "#d0320b",
+    "font_name": "timesbd.ttf",
+    "font_size": 36,
+    "sample_text": "TEAM APOLLO",
+    "x_pct": 0.499566108315678,
+    "y_pct": 0.5533742261079192
+  },
+  "sig1": {
+    "file": "sig_24337104.png"
+  },
+  "signature1": {
+    "file": "sig_84ebabc0.png",
+    "width_pct": 0.1,
+    "x_pct": 0.18824407441737287,
+    "y_pct": 0.13926379666006639
+  },
+  "signature1_label": "COORDINATOR",
+  "signature2": {
+    "width_pct": 0.1,
+    "x_pct": 0.8575322100105932,
+    "y_pct": 0.17177914110429449
+  },
+  "signature2_label": "PRINCIPAL",
+  "template_pdf": "vibe_certificate_template.pdf",
+  "year": {
+    "color": "#d0340d",
+    "font_name": "arialbi.ttf",
+    "font_size": 18,
+    "sample_text": "4th Year",
+    "x_pct": 0.6308203456038136,
+    "y_pct": 0.43067483960485164
+  }
+}
