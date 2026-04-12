@@ -43,39 +43,39 @@ certificate/
 ---
 
 ## 🚀 Getting Started
-
+ 
 ### Prerequisites
-
+ 
 - Python 3.8+
 - `poppler` (required by `pdf2image`)
   - **Ubuntu/Debian:** `sudo apt install poppler-utils`
   - **macOS:** `brew install poppler`
   - **Windows:** [Download poppler for Windows](https://github.com/oschwartz10612/poppler-windows/releases)
-
+ 
 ### Installation
-
+ 
 ```bash
-git clone https://github.com/Adith-techie/certificate.git
-cd certificate
+git clone https://github.com/Adith-techie/certificate-generator.git
+cd certificate-generator
 pip install -r requirements.txt
 ```
-
+ 
 **`requirements.txt`**
 ```
-flask
-reportlab
-pdf2image
-Pillow
+Flask==3.1.0
+reportlab==4.4.1
+pdf2image==1.17.0
+Pillow==11.2.1
 ```
-
+ 
 ### Run
-
+ 
 ```bash
 python app.py
 ```
-
+ 
 Open [http://localhost:5000](http://localhost:5000) in your browser.
-
+ 
 ---
 
 ## 🧭 Usage
