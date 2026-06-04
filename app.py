@@ -15,7 +15,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "template_config.json")
 SIGNATURES_DIR = os.path.join(BASE_DIR, "signatures")
 OUT_DIR = os.path.join(BASE_DIR, "certificates")
-TEMPLATE_IMAGE = os.path.join(BASE_DIR, "hackathon_certificate_template.png")
+TEMPLATE_IMAGE = os.path.join(BASE_DIR, "certificate_template.png")
 WINDOWS_FONTS = r"C:\Windows\Fonts"
 
 # Landscape A4 dimensions in points
@@ -96,16 +96,20 @@ def _draw_signature(page, sig_path, cfg, w, h):
         img_rect = fitz.Rect(x - sig_w / 2, y - sig_h / 2, x + sig_w / 2, y + sig_h / 2)
     page.insert_image(img_rect, filename=sig_path)
 
-def _apply_text_and_signatures(page, config, name, department, year, extra_texts=None):
+def _apply_text_and_signatures(page, config, fields_data, extra_texts=None):
     """Apply all text fields and signatures to a page."""
     w, h = PDF_WIDTH, PDF_HEIGHT
 
-    _draw_text(page, name, config["name"], w, h)
-    _draw_text(page, department, config["department"], w, h)
-    _draw_text(page, year, config["year"], w, h)
-
-    # Extra text fields
+    custom_fields = config.get("custom_fields", [])
     extra_texts = extra_texts or []
+
+    for field in custom_fields:
+        field_key = field["key"]
+        text_value = fields_data.get(field_key, field.get("sample_text", ""))
+        if field_key in config and "x_pct" in config[field_key]:
+            _draw_text(page, text_value, config[field_key], w, h)
+
+    # Extra text fields (legacy support)
     for i, extra_text in enumerate(config.get("extra_texts", [])):
         text_value = extra_texts[i] if i < len(extra_texts) else extra_text.get("sample_text", "")
         _draw_text(page, text_value, extra_text, w, h)
@@ -123,23 +127,24 @@ def _apply_text_and_signatures(page, config, name, department, year, extra_texts
         if sig_file:
             _draw_signature(page, os.path.join(SIGNATURES_DIR, sig_file), extra_sig, w, h)
 
-def generate_single_pdf(name, department, year, config, extra_texts=None):
+def generate_single_pdf(fields_data, config, extra_texts=None):
     """Generate a single certificate PDF."""
-    out_path = os.path.join(OUT_DIR, f"{uuid.uuid4().hex[:8]}_{name.replace(' ', '_')}.pdf")
+    name = fields_data.get("name", "Certificate Recipient").replace(' ', '_')
+    out_path = os.path.join(OUT_DIR, f"{uuid.uuid4().hex[:8]}_{name}.pdf")
     doc = fitz.open()
     page = doc.new_page(width=PDF_WIDTH, height=PDF_HEIGHT)
     page.insert_image(page.rect, filename=TEMPLATE_IMAGE)
-    _apply_text_and_signatures(page, config, name, department, year, extra_texts)
+    _apply_text_and_signatures(page, config, fields_data, extra_texts)
     doc.save(out_path)
     doc.close()
     return out_path
 
-def generate_preview_png(name, department, year, config, extra_texts=None):
+def generate_preview_png(fields_data, config, extra_texts=None):
     """Generate a PNG preview identical to PDF generation."""
     doc = fitz.open()
     page = doc.new_page(width=PDF_WIDTH, height=PDF_HEIGHT)
     page.insert_image(page.rect, filename=TEMPLATE_IMAGE)
-    _apply_text_and_signatures(page, config, name, department, year, extra_texts)
+    _apply_text_and_signatures(page, config, fields_data, extra_texts)
     pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
     data = pix.tobytes("png")
     doc.close()
@@ -176,20 +181,19 @@ def template_image():
 def preview():
     """Generate a PNG preview identical to the final PDF."""
     data = request.json
-    name = data.get("name", "Sreerag S Nair").strip()
-    department = data.get("department", "CSE").strip()
-    year = data.get("year", "4th Year").strip()
-
+    fields_data = data.get("fields", {})
+    extra_texts = data.get("extra_texts", [])
+    
     config = load_config()
     if "config" in data:
-        for key in ("name", "department", "year", "signature1", "signature2", "extra_texts", "extra_signatures"):
+        for key in ("custom_fields", "signature1", "signature2", "extra_texts", "extra_signatures"):
             if key in data["config"]:
-                if key in ("extra_texts", "extra_signatures"):
+                if key in ("extra_texts", "extra_signatures", "custom_fields"):
                     config[key] = data["config"][key]
                 elif key in config:
                     config[key].update(data["config"][key])
 
-    png_data = generate_preview_png(name, department, year, config)
+    png_data = generate_preview_png(fields_data, config, extra_texts)
     return send_file(BytesIO(png_data), mimetype="image/png")
 
 @app.route("/api/config", methods=["GET"])
@@ -201,6 +205,56 @@ def save_config():
     config = request.json
     with open(CONFIG_PATH, "w") as f:
         json.dump(config, f, indent=2)
+    return jsonify({"status": "ok"})
+
+@app.route("/api/fields", methods=["GET"])
+def get_fields():
+    """Get list of custom fields."""
+    config = load_config()
+    fields = config.get("custom_fields", [])
+    return jsonify({"fields": fields})
+
+@app.route("/api/fields", methods=["POST"])
+def save_fields():
+    """Save custom fields configuration."""
+    data = request.json
+    fields = data.get("fields", [])
+    
+    config = load_config()
+    config["custom_fields"] = fields
+    
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(config, f, indent=2)
+    
+    return jsonify({"status": "ok", "fields": fields})
+
+@app.route("/api/field", methods=["POST"])
+def add_field():
+    """Add a single custom field."""
+    data = request.json
+    field = data.get("field")
+    
+    config = load_config()
+    if "custom_fields" not in config:
+        config["custom_fields"] = []
+    
+    config["custom_fields"].append(field)
+    
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(config, f, indent=2)
+    
+    return jsonify({"status": "ok"})
+
+@app.route("/api/field/<field_key>", methods=["DELETE"])
+def delete_field(field_key):
+    """Delete a custom field."""
+    config = load_config()
+    fields = config.get("custom_fields", [])
+    config["custom_fields"] = [f for f in fields if f.get("key") != field_key]
+    
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(config, f, indent=2)
+    
     return jsonify({"status": "ok"})
 
 @app.route("/signatures/<filename>")
@@ -236,44 +290,60 @@ def delete_signature():
 @app.route("/api/generate-single", methods=["POST"])
 def generate_single():
     data = request.json
-    name = data.get("name", "").strip()
-    department = data.get("department", "").strip()
-    year = data.get("year", "").strip()
+    fields_data = data.get("fields", {})
     extra_texts = data.get("extra_texts", [])
-    if not name:
+    
+    if not fields_data.get("name"):
         return jsonify({"error": "Name is required"}), 400
+    
     config = load_config()
-    pdf_path = generate_single_pdf(name, department, year, config, extra_texts)
+    pdf_path = generate_single_pdf(fields_data, config, extra_texts)
+    name = fields_data.get("name", "Certificate").replace(' ', '_')
     return send_file(pdf_path, mimetype="application/pdf", as_attachment=True,
-                     download_name=f"{name.replace(' ', '_')}_certificate.pdf")
+                     download_name=f"{name}_certificate.pdf")
 
 @app.route("/api/generate-bulk", methods=["POST"])
 def generate_bulk():
-    csv_data = request.form.get("csv_data", "")
-    if not csv_data:
-        return jsonify({"error": "No CSV data"}), 400
+    data = request.json
+    records = data.get("records", [])
+    
+    if not records:
+        return jsonify({"error": "No records provided"}), 400
+    
     config = load_config()
-    reader = csv.DictReader(StringIO(csv_data))
-    participants = []
-    for row in reader:
-        row = {k.strip(): v for k, v in row.items()}
-        row_name = row.get("Name", "").strip()
-        if row_name:
-            participants.append({
-                "name": row_name,
-                "department": row.get("Department", "").strip(),
-                "year": row.get("Year of Study", "").strip(),
-            })
-    if not participants:
-        return jsonify({"error": "No valid participants"}), 400
+    
     zip_buf = tempfile.NamedTemporaryFile(suffix=".zip", delete=False, dir=OUT_DIR)
     zip_buf.close()
+    
     with zipfile.ZipFile(zip_buf.name, "w", zipfile.ZIP_DEFLATED) as zf:
-        for i, p in enumerate(participants, 1):
-            pdf_path = generate_single_pdf(p["name"], p["department"], p["year"], config)
-            arc_name = f"{i:02d}_{p['name'].replace(' ', '_')}.pdf"
+        for i, record in enumerate(records, 1):
+            record_clean = {k.strip(): v.strip() if isinstance(v, str) else v for k, v in record.items() if v}
+            
+            # Extract name and other fields
+            fields_data = {}
+            extra_texts = []
+            
+            for key, value in record_clean.items():
+                if key == "name":
+                    fields_data["name"] = value
+                elif key.startswith("extra_text_"):
+                    # Handle extra_text_1, extra_text_2, etc.
+                    idx = int(key.replace("extra_text_", "")) - 1
+                    while len(extra_texts) <= idx:
+                        extra_texts.append("")
+                    extra_texts[idx] = value
+                else:
+                    # Map other columns to custom fields
+                    fields_data[key] = value
+            
+            if not fields_data.get("name"):
+                continue  # Skip records without name
+            
+            pdf_path = generate_single_pdf(fields_data, config, extra_texts)
+            arc_name = f"{i:02d}_{fields_data['name'].replace(' ', '_')}.pdf"
             zf.write(pdf_path, arc_name)
             os.remove(pdf_path)
+    
     return send_file(zip_buf.name, mimetype="application/zip",
                      as_attachment=True, download_name="certificates.zip")
 

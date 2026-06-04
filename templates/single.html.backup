@@ -89,14 +89,12 @@
 
         function populateForm() {
             const form = document.getElementById("cert-form");
-            const existingCustom = form.querySelectorAll('.custom-field, .extra-field');
+            const existingCustom = form.querySelectorAll('.custom-field');
             existingCustom.forEach(el => el.remove());
 
             const fields = config.custom_fields || [];
-            const extraTexts = config.extra_texts || [];
             const submitBtn = form.querySelector('button[type="submit"]');
 
-            // Add main fields
             fields.forEach((field) => {
                 const div = document.createElement("div");
                 div.className = "form-group custom-field";
@@ -108,18 +106,6 @@
                 `;
                 form.insertBefore(div, submitBtn);
             });
-
-            // Add extra text fields
-            extraTexts.forEach((text, index) => {
-                const div = document.createElement("div");
-                div.className = "form-group extra-field";
-                div.innerHTML = `
-                    <label for="extra-text-${index}">Extra Text ${index + 1}</label>
-                    <input type="text" id="extra-text-${index}" data-extra-key="extra_texts" data-index="${index}"
-                        placeholder="${text.sample_text || 'Enter text'}">
-                `;
-                form.insertBefore(div, submitBtn);
-            });
         }
 
         document.getElementById("cert-form").addEventListener("submit", async (e) => {
@@ -127,18 +113,9 @@
             const fields = {};
             const form = document.getElementById("cert-form");
             
-            // Collect main fields
             form.querySelectorAll('.custom-field input').forEach(input => {
                 fields[input.dataset.key] = input.value;
             });
-
-            // Collect extra text fields
-            const extra_texts = [];
-            form.querySelectorAll('.extra-field input').forEach(input => {
-                const index = parseInt(input.dataset.index);
-                extra_texts[index] = input.value;
-            });
-            if (extra_texts.length > 0) fields.extra_texts = extra_texts;
 
             if (!fields.name) {
                 alert("Name is required!");

@@ -1,45 +1,42 @@
 {
-  "department": {
-    "color": "#d0320b",
-    "font_name": "arialbi.ttf",
-    "font_size": 17,
-    "sample_text": "CSE",
-    "x_pct": 0.36831187102754237,
-    "y_pct": 0.43220858193614
-  },
+  "custom_fields": [
+    {
+      "key": "name",
+      "label": "Recipient Name",
+      "required": true,
+      "sample_text": "Recipient Name",
+      "type": "text"
+    }
+  ],
   "extra_signatures": [],
-  "extra_texts": [],
+  "extra_texts": [
+    {
+      "sample_text": "New Text",
+      "font_size": 24,
+      "color": "#5a4a2e",
+      "x_pct": 0.5,
+      "y_pct": 0.5,
+      "font_name": "arialbd.ttf"
+    }
+  ],
   "name": {
     "color": "#d0320b",
     "font_name": "timesbd.ttf",
     "font_size": 36,
-    "sample_text": "TEAM APOLLO",
-    "x_pct": 0.499566108315678,
-    "y_pct": 0.5533742261079192
-  },
-  "sig1": {
-    "file": "sig_24337104.png"
+    "sample_text": "Recipient Name",
+    "x_pct": 0.5521937095496429,
+    "y_pct": 0.38443934600901053
   },
   "signature1": {
-    "file": "sig_84ebabc0.png",
+    "label": "Signature 1",
     "width_pct": 0.1,
-    "x_pct": 0.18824407441737287,
-    "y_pct": 0.13926379666006639
+    "x_pct": 0.2052471929230149,
+    "y_pct": 0.1613272217577758
   },
-  "signature1_label": "COORDINATOR",
   "signature2": {
+    "label": "Signature 2",
     "width_pct": 0.1,
-    "x_pct": 0.8575322100105932,
-    "y_pct": 0.17177914110429449
-  },
-  "signature2_label": "PRINCIPAL",
-  "template_pdf": "vibe_certificate_template.pdf",
-  "year": {
-    "color": "#d0340d",
-    "font_name": "arialbi.ttf",
-    "font_size": 18,
-    "sample_text": "4th Year",
-    "x_pct": 0.6308203456038136,
-    "y_pct": 0.43067483960485164
+    "x_pct": 0.8283348146198161,
+    "y_pct": 0.1670480454565254
   }
 }

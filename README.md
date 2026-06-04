@@ -1,18 +1,21 @@
 # 🎓 Certificate Generator
 
-A Flask web app for generating PDF certificates from a template — with a **drag-and-drop visual editor**, **single certificate preview**, and **bulk generation** from CSV.
+A **universal** Flask web app for generating PDF certificates from a custom template — with a **drag-and-drop visual editor**, **customizable fields**, **single certificate preview**, and **bulk generation** from CSV.
 
+Perfect for **colleges, corporate training, workshops, conferences, events, and any certification need**.
 
 ---
 
 ## ✨ Features
 
-- 🖱️ **Drag-and-drop editor** — visually position Name, Department, Year, and Signature placeholders directly over the certificate template
-- 🔤 **Font-size controls** per placeholder; signature placeholders show actual uploaded images
+- 🖱️ **Drag-and-drop editor** — visually position any fields and signatures on the certificate template
+- 🎯 **Customizable fields** — define your own certificate fields (Name, Organization, Role, Department, Award, etc.)
+- 🔤 **Font & color controls** — adjust font size, style, and color per field
 - 📄 **Single generation** — fill a form, instantly preview and download one certificate
-- 📦 **Bulk generation** — upload a CSV (or use the existing `participants_clean.csv`) and download all certificates as a ZIP
-- 📐 **Percentage-based coordinates** — positions stored as `%` of page dimensions, zoom and resolution independent
-- 🖼️ **Live PDF preview** — template PDF rendered as a PNG background in the editor via `pdf2image`
+- 📦 **Bulk generation** — upload a CSV with any column headers and download all certificates as a ZIP
+- 📐 **Percentage-based coordinates** — positions stored as `%` of page dimensions, resolution independent
+- 🖼️ **Live preview** — see changes instantly in the editor
+- 🚀 **No code changes needed** — fully generic, works for any use case
 
 ---
 
@@ -45,12 +48,10 @@ certificate/
 ## 🚀 Getting Started
  
 ### Prerequisites
- 
+
 - Python 3.8+
-- `poppler` (required by `pdf2image`)
-  - **Ubuntu/Debian:** `sudo apt install poppler-utils`
-  - **macOS:** `brew install poppler`
-  - **Windows:** [Download poppler for Windows](https://github.com/oschwartz10612/poppler-windows/releases)
+
+> **Note:** No system dependencies required! PyMuPDF handles all PDF operations.
  
 ### Installation
  
@@ -63,8 +64,7 @@ pip install -r requirements.txt
 **`requirements.txt`**
 ```
 Flask==3.1.0
-reportlab==4.4.1
-pdf2image==1.17.0
+PyMuPDF==1.24.0
 Pillow==11.2.1
 ```
  
@@ -82,22 +82,25 @@ Open [http://localhost:5000](http://localhost:5000) in your browser.
 
 ### 1. Template Editor — `/editor`
 
-- The certificate template PDF is rendered as a background image.
-- Drag placeholders (Name, Department, Year, Signature 1, Signature 2) to the desired positions.
-- Adjust font size per text field; upload images for signature placeholders.
-- Click **Save** — coordinates are written to `template_config.json` as percentages.
+- The certificate template PNG is displayed as a background
+- Drag placeholders to position them on the template
+- Customize field names and labels (Name, Organization, Role, Department, Award, etc.)
+- Adjust font size, color, and font per field
+- Upload images for signature placeholders
+- Click **Save** — coordinates are written to `template_config.json`
 
 ### 2. Single Certificate — `/single`
 
-- Fill in Name, Department, and Year.
-- Preview the certificate live in the browser.
-- Download as a PDF.
+- Form fields are **automatically generated** based on your template configuration
+- Fill in the details and preview the certificate
+- Download as a PDF
 
 ### 3. Bulk Generation — `/bulk`
 
-- Upload a CSV **or** use the existing `participants_clean.csv`.
-- Expected columns: `Name`, `Department`, `Year`
-- Click **Generate** — all certificates are packaged and downloaded as a `.zip`.
+- Upload a CSV file with **any column headers** (first column must be "Name")
+- Or paste CSV data directly into the text area
+- Column headers match your certificate fields
+- All certificates are packaged and downloaded as a `.zip`
 
 ---
 
@@ -105,26 +108,66 @@ Open [http://localhost:5000](http://localhost:5000) in your browser.
 
 ```
 template_config.json
-  └─ {field: {x_pct, y_pct, font_size, width_pct}}
-        │
-        ▼
-  app.py  (reportlab)
-        │
-        ├─ Renders template PDF as canvas background
-        ├─ Converts % coordinates → absolute pixel positions
-        ├─ Draws text fields at saved positions
-        └─ Draws signature images at saved positions & sizes
+  └─ {custom_fields: [...], field_configs: {...}}
+       │
+       ▼
+  app.py  (PyMuPDF - fitz)
+       │
+       ├─ Loads custom field definitions
+       ├─ Maps CSV columns to fields
+       ├─ Converts % coordinates → absolute positions
+       ├─ Draws text fields at saved positions
+       ├─ Draws signature images at saved positions
+       └─ Generates PDF certificate
 ```
+
+**Fully Generic:**
+- No hardcoded field names (Department, Year, etc.)
+- Field names defined in `template_config.json`
+- CSV columns automatically matched to template fields
+- Works for any use case without code changes
 
 ---
 
-## 📋 CSV Format
+## 📋 CSV Format Examples
 
+**First column MUST be "Name". All other columns are flexible based on your certificate fields.**
+
+### 📚 For College/University Certificates:
 ```csv
-Name,Department,Year
+Name,Department,Year of Study
 Adith,Computer Science,3rd Year
 Jane Doe,Electronics,2nd Year
 ```
+
+### 💼 For Corporate Training:
+```csv
+Name,Company,Course,Completion Date
+John Smith,TechCorp Inc,Advanced Python,2024-06-01
+Sarah Johnson,DataSoft,Machine Learning,2024-06-02
+```
+
+### 🎓 For Workshops:
+```csv
+Name,Workshop Title,Level,Attendance Hours
+Alice Chen,Web Development Bootcamp,Advanced,40
+Bob Williams,Cloud Computing,Intermediate,30
+```
+
+### 🎤 For Conferences:
+```csv
+Name,Company,Session Attended,Date
+Dr. Emma Wilson,University ABC,AI Trends in 2024,2024-05-15
+Prof. James Lee,Research Institute,Ethics in ML,2024-05-16
+```
+
+### 🎖️ For General Events:
+```csv
+Name,Organization,Role,Date
+Recipient Name,Your Organization,Achievement Title,2024-06-04
+```
+
+**👉 Customize field names to match your certificate template configuration!**
 
 ---
 
@@ -133,8 +176,8 @@ Jane Doe,Electronics,2nd Year
 | Layer       | Technology                    |
 |-------------|-------------------------------|
 | Backend     | Flask (Python)                |
-| PDF Engine  | ReportLab                     |
-| PDF Preview | pdf2image + Pillow            |
+| PDF Engine  | PyMuPDF (fitz)                |
+| Image Handling | Pillow                    |
 | Frontend    | Vanilla JS, HTML, CSS         |
 | Storage     | JSON config, local filesystem |
 
@@ -142,6 +185,31 @@ Jane Doe,Electronics,2nd Year
 
 ## 📄 License
 
-This project is for internal use . Not licensed for redistribution.
+This project is provided as-is for general use. Feel free to customize and use for your certificate generation needs.
 
 ---
+
+## 🎯 Use Cases
+
+✅ **College & University** — Graduation, course completion, achievement certificates  
+✅ **Corporate Training** — Employee training completion, certification courses  
+✅ **Workshops & Bootcamps** — Participation, skill level, completion certificates  
+✅ **Conferences** — Attendance, speaker, session participation certificates  
+✅ **Events** — Award, appreciation, participation certificates  
+✅ **Online Learning** — Course completion, badge certificates  
+✅ **Competitions** — Winner, participant, finalist certificates  
+✅ **Any Custom Scenario** — Fully customizable fields and layout
+
+---
+
+## 🔧 Customization
+
+To add or modify fields:
+
+1. Go to `/editor`
+2. Customize field names and their positions
+3. Save the configuration
+4. Fields automatically appear in `/single` and `/bulk` forms
+5. Your CSV columns should match the field names
+
+**No code changes required!**

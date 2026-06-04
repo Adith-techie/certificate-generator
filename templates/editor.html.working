@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Editor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0ece3; }
+        .header {
+            background: #8b6914; color: #fff; padding: 0.8rem 1.5rem;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header h1 { font-size: 1.2rem; }
+        .header a { color: #fff; text-decoration: none; font-size: 0.85rem; opacity: 0.8; }
+        .header a:hover { opacity: 1; }
+        .layout { display: flex; height: calc(100vh - 48px); }
+
+        .sidebar {
+            width: 300px; background: #fff; padding: 1rem;
+            overflow-y: auto; border-right: 1px solid #ddd;
+        }
+        .sidebar h2 { font-size: 0.9rem; color: #8b6914; margin: 1rem 0 0.4rem; padding-bottom: 0.3rem; border-bottom: 2px solid #c9a227; }
+        .sidebar h2:first-child { margin-top: 0; }
+        .field-card {
+            background: #faf8f2; border: 1px solid #e0d8c4; border-radius: 8px;
+            padding: 0.7rem; margin-bottom: 0.6rem;
+        }
+        .row { display: flex; gap: 0.4rem; margin-bottom: 0.3rem; align-items: center; }
+        .row label { font-size: 0.73rem; color: #6b5a3e; white-space: nowrap; min-width: 45px; }
+        .row input[type="text"] {
+            flex: 1; padding: 0.25rem 0.4rem; border: 1px solid #ccc;
+            border-radius: 4px; font-size: 0.8rem;
+        }
+        .row input[type="number"] {
+            width: 55px; padding: 0.25rem 0.4rem; border: 1px solid #ccc;
+            border-radius: 4px; font-size: 0.8rem;
+        }
+        .row input[type="color"] {
+            width: 28px; height: 24px; border: 1px solid #ccc; border-radius: 4px;
+            padding: 1px; cursor: pointer;
+        }
+        .row select {
+            flex: 1; padding: 0.25rem 0.3rem; border: 1px solid #ccc;
+            border-radius: 4px; font-size: 0.8rem;
+        }
+        .btn-save {
+            display: block; width: 100%; padding: 0.7rem; border: none; border-radius: 5px;
+            font-size: 0.9rem; cursor: pointer; font-weight: 600; background: #8b6914; color: #fff;
+            margin-top: 1rem;
+        }
+        .btn-save:hover { background: #6d5210; }
+        .btn-delete {
+            width: 100%; padding: 0.4rem; border: none; border-radius: 4px;
+            font-size: 0.75rem; cursor: pointer; font-weight: 600; background: #c0392b; color: #fff;
+        }
+        .btn-delete:hover { background: #a93226; }
+        .status { font-size: 0.8rem; margin-top: 0.4rem; color: #2d7a2d; min-height: 1.1em; text-align: center; }
+
+        .canvas-area {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            padding: 1rem; overflow: auto; position: relative;
+        }
+        .canvas-box {
+            position: relative; display: inline-block;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .preview-img { display: block; max-height: calc(100vh - 80px); user-select: none; }
+
+        .loading {
+            position: absolute; inset: 0; background: rgba(255,255,255,0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 200; font-size: 0.85rem; color: #8b6914; font-weight: 600;
+        }
+        .loading.hidden { display: none; }
+
+        /* Draggable text overlays */
+        .text-el {
+            position: absolute; cursor: grab; user-select: none; z-index: 50;
+            transform: translate(-50%, -50%);
+            white-space: nowrap; padding: 3px 6px;
+            border: 1px dashed transparent; border-radius: 3px;
+        }
+        .text-el:hover,
+        .text-el.dragging {
+            border-color: rgba(255,255,255,0.6);
+            background: rgba(0,0,0,0.15);
+        }
+        .text-el:active { cursor: grabbing; }
+
+        /* Signature overlays */
+        .sig-el {
+            position: absolute; cursor: grab; user-select: none; z-index: 50;
+            transform: translate(-50%, -50%);
+            border: 1px dashed rgba(38,107,187,0.5); border-radius: 3px;
+            padding: 2px; background: rgba(255,255,255,0.1);
+        }
+        .sig-el:active { cursor: grabbing; }
+        .sig-el img { display: block; pointer-events: none; max-width: 120px; }
+        .sig-el .sig-tag {
+            font-size: 0.6rem; text-align: center; color: #26b;
+            background: rgba(255,255,255,0.9); padding: 0 3px; border-radius: 2px;
+        }
+
+        #sig1-preview img, #sig2-preview img {
+            max-width: 100px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Template Editor</h1>
+        <a href="/">Back to Dashboard</a>
+    </div>
+
+    <div class="layout">
+        <div class="sidebar">
+            <h2 style="margin-top:0">Text Field</h2>
+            <div class="field-card">
+                <div class="row">
+                    <label>Placeholder</label>
+                    <input type="text" id="main-text-placeholder" value="Recipient Name" oninput="schedulePreview()">
+                </div>
+                <div class="row">
+                    <label>Font</label>
+                    <select id="main-text-font" onchange="schedulePreview()">
+                        <optgroup label="Bold">
+                            <option value="arialbd.ttf">Arial Bold</option>
+                            <option value="verdanab.ttf">Verdana Bold</option>
+                            <option value="timesbd.ttf" selected>Times New Roman Bold</option>
+                            <option value="georgiab.ttf">Georgia Bold</option>
+                        </optgroup>
+                        <optgroup label="Cursive">
+                            <option value="brushsci.ttf">Brush Script</option>
+                            <option value="VIVALDII.TTF">Vivaldi</option>
+                            <option value="comic.ttf">Comic Sans MS</option>
+                            <option value="lhandw.ttf">Lucida Handwriting</option>
+                        </optgroup>
+                        <optgroup label="Bold Italic">
+                            <option value="arialbi.ttf">Arial Bold Italic</option>
+                            <option value="timesbi.ttf">Times New Roman Bold Italic</option>
+                            <option value="georgiabi.ttf">Georgia Bold Italic</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="row">
+                    <label>Size</label>
+                    <input type="number" id="main-text-size" value="36" min="1" max="72" oninput="schedulePreview()">
+                    <label>Color</label>
+                    <input type="color" id="main-text-color" value="#d0320b" oninput="schedulePreview()">
+                </div>
+                <div class="row">
+                    <label>X %</label>
+                    <input type="number" id="main-text-x" value="50" min="0" max="100" step="0.1" oninput="schedulePreview()">
+                    <label>Y %</label>
+                    <input type="number" id="main-text-y" value="40" min="0" max="100" step="0.1" oninput="schedulePreview()">
+                </div>
+            </div>
+
+            <h2>Extra Text Fields</h2>
+            <div id="extra-texts-container"></div>
+            <button class="btn-save" onclick="addExtraText()">Add Extra Text Field</button>
+
+            <h2>Signature 1</h2>
+            <div class="field-card">
+                <div class="row">
+                    <label>Upload</label>
+                    <input type="file" id="sig1-file" accept="image/*" onchange="uploadSignature('sig1')">
+                </div>
+                <div class="row">
+                    <label>W%</label>
+                    <input type="number" id="sig1-width" value="0.10" min="0.02" max="0.40" step="0.01" oninput="schedulePreview()">
+                    <label>H%</label>
+                    <input type="number" id="sig1-height" value="" min="0.02" max="0.40" step="0.01" placeholder="auto" oninput="schedulePreview()">
+                </div>
+                <div class="row">
+                    <label>X %</label>
+                    <input type="number" id="sig1-x" value="20" min="0" max="100" step="0.1" oninput="schedulePreview()">
+                    <label>Y %</label>
+                    <input type="number" id="sig1-y" value="16" min="0" max="100" step="0.1" oninput="schedulePreview()">
+                </div>
+                <div id="sig1-preview"></div>
+                <div class="btn-row" id="sig1-delete-row" style="display:none; margin-top:0.4rem;">
+                    <button class="btn btn-delete" onclick="deleteSignature('sig1')">Delete Signature 1</button>
+                </div>
+            </div>
+
+            <h2>Signature 2</h2>
+            <div class="field-card">
+                <div class="row">
+                    <label>Upload</label>
+                    <input type="file" id="sig2-file" accept="image/*" onchange="uploadSignature('sig2')">
+                </div>
+                <div class="row">
+                    <label>W%</label>
+                    <input type="number" id="sig2-width" value="0.10" min="0.02" max="0.40" step="0.01" oninput="schedulePreview()">
+                    <label>H%</label>
+                    <input type="number" id="sig2-height" value="" min="0.02" max="0.40" step="0.01" placeholder="auto" oninput="schedulePreview()">
+                </div>
+                <div class="row">
+                    <label>X %</label>
+                    <input type="number" id="sig2-x" value="80" min="0" max="100" step="0.1" oninput="schedulePreview()">
+                    <label>Y %</label>
+                    <input type="number" id="sig2-y" value="17" min="0" max="100" step="0.1" oninput="schedulePreview()">
+                </div>
+                <div id="sig2-preview"></div>
+                <div class="btn-row" id="sig2-delete-row" style="display:none; margin-top:0.4rem;">
+                    <button class="btn btn-delete" onclick="deleteSignature('sig2')">Delete Signature 2</button>
+                </div>
+            </div>
+
+            <h2>Extra Signatures</h2>
+            <div id="extra-signatures-container"></div>
+            <button class="btn-save" onclick="addExtraSignature()">Add Extra Signature</button>
+
+            <button class="btn-save" onclick="saveConfig()">Save Template</button>
+            <div class="status" id="status"></div>
+        </div>
+
+        <div class="canvas-area">
+            <div class="canvas-box" id="canvas-box">
+                <img class="preview-img" id="preview-img" src="" alt="Preview">
+                <div class="loading" id="loading">Loading preview...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const FIELDS = [
+            { key: "name",       sampleId: "name-sample",  sizeId: "name-size",  colorId: "name-color", fontId: "name-font" },
+            { key: "department", sampleId: "dept-sample", sizeId: "dept-size",  colorId: "dept-color", fontId: "dept-font" },
+            { key: "year",       sampleId: "year-sample", sizeId: "year-size",  colorId: "year-color", fontId: "year-font" },
+        ];
+        const SIG_KEYS = ["signature1", "signature2"];
+        let config = {};
+        let extraTextIndex = 0;
+        let extraSigIndex = 0;
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            try {
+                const res = await fetch("/api/config");
+                if (res.ok) {
+                    config = await res.json();
+                    populateSidebar();
+                }
+            } catch(e) { console.warn("No config yet:", e); }
+
+            await doPreview();
+        });
+
+        function setVal(id, val) {
+            if (val !== null && val !== undefined && val !== "") {
+                document.getElementById(id).value = val;
+            }
+        }
+        function setPicker(id, val) {
+            const el = document.getElementById(id);
+            if (el && val && typeof val === "string" && val.startsWith("#")) {
+                el.value = val.slice(0, 7);
+            }
+        }
+
+        function populateSidebar() {
+            FIELDS.forEach(f => {
+                const c = config[f.key] || {};
+                setVal(f.sizeId, c.font_size ?? null);
+                setPicker(f.colorId, c.color ?? null);
+                setVal(f.sampleId, c.sample_text ?? null);
+                setVal(f.fontId, c.font_name ?? null);
+            });
+            setVal("sig1-width", config.signature1?.width_pct ?? null);
+            setVal("sig2-width", config.signature2?.width_pct ?? null);
+            setVal("sig1-height", config.signature1?.height_pct ?? null);
+            setVal("sig2-height", config.signature2?.height_pct ?? null);
+            if (config.signature1?.file) showSigFile("sig1", config.signature1.file);
+            if (config.signature2?.file) showSigFile("sig2", config.signature2.file);
+
+            // Initialize extras if not present
+            if (!config.extra_texts) config.extra_texts = [];
+            if (!config.extra_signatures) config.extra_signatures = [];
+
+            // Populate extra texts
+            const extraTextsContainer = document.getElementById("extra-texts-container");
+            extraTextsContainer.innerHTML = "";
+            config.extra_texts.forEach((text, index) => {
+                addExtraTextField(index, text);
+            });
+
+            // Populate extra signatures
+            const extraSigsContainer = document.getElementById("extra-signatures-container");
+            extraSigsContainer.innerHTML = "";
+            config.extra_signatures.forEach((sig, index) => {
+                addExtraSignatureField(index, sig);
+            });
+        }
+
+        /* ── Read sidebar into config ── */
+        function readCfg() {
+            FIELDS.forEach(f => {
+                config[f.key] = config[f.key] || {};
+                config[f.key].font_size = parseInt(document.getElementById(f.sizeId).value) || 12;
+                config[f.key].color = document.getElementById(f.colorId).value || "#5a4a2e";
+                config[f.key].sample_text = document.getElementById(f.sampleId).value;
+                const fontVal = document.getElementById(f.fontId).value;
+                if (fontVal) config[f.key].font_name = fontVal;
+                else delete config[f.key].font_name;
+            });
+            config.signature1 = config.signature1 || {};
+            config.signature2 = config.signature2 || {};
+            config.signature1.width_pct = parseFloat(document.getElementById("sig1-width").value) || 0.10;
+            config.signature2.width_pct = parseFloat(document.getElementById("sig2-width").value) || 0.10;
+
+            const h1 = document.getElementById("sig1-height").value;
+            const h2 = document.getElementById("sig2-height").value;
+            if (h1) config.signature1.height_pct = parseFloat(h1);
+            else delete config.signature1.height_pct;
+            if (h2) config.signature2.height_pct = parseFloat(h2);
+            else delete config.signature2.height_pct;
+
+            // Read extra texts
+            config.extra_texts.forEach((text, index) => {
+                const prefix = `extra-text-${index}`;
+                text.font_size = parseInt(document.getElementById(`${prefix}-size`).value) || 12;
+                text.color = document.getElementById(`${prefix}-color`).value || "#5a4a2e";
+                text.sample_text = document.getElementById(`${prefix}-sample`).value;
+                const fontVal = document.getElementById(`${prefix}-font`).value;
+                if (fontVal) text.font_name = fontVal;
+                else delete text.font_name;
+            });
+
+            // Read extra signatures
+            config.extra_signatures.forEach((sig, index) => {
+                const prefix = `extra-sig-${index}`;
+                sig.width_pct = parseFloat(document.getElementById(`${prefix}-width`).value) || 0.10;
+                const h = document.getElementById(`${prefix}-height`).value;
+                if (h) sig.height_pct = parseFloat(h);
+                else delete sig.height_pct;
+            });
+        }
+
+        /* ── Preview config (positions + styles) ── */
+        function previewCfg() {
+            readCfg();
+            const c = {};
+            FIELDS.forEach(f => {
+                c[f.key] = {
+                    font_size: config[f.key].font_size,
+                    color: config[f.key].color,
+                    x_pct: config[f.key].x_pct ?? 0.5,
+                    y_pct: config[f.key].y_pct ?? 0.5,
+                };
+                if (config[f.key].font_name) c[f.key].font_name = config[f.key].font_name;
+            });
+            c.signature1 = { ...config.signature1 };
+            c.signature2 = { ...config.signature2 };
+
+            // Add extra texts
+            c.extra_texts = config.extra_texts.map(text => ({
+                font_size: text.font_size,
+                color: text.color,
+                x_pct: text.x_pct ?? 0.5,
+                y_pct: text.y_pct ?? 0.5,
+                sample_text: text.sample_text,
+                font_name: text.font_name
+            }));
+
+            // Add extra signatures
+            c.extra_signatures = config.extra_signatures.map(sig => ({
+                ...sig
+            }));
+
+            return c;
+        }
+
+        function sampleData() {
+            return {
+                name: document.getElementById("name-sample").value,
+                department: document.getElementById("dept-sample").value,
+                year: document.getElementById("year-sample").value,
+            };
+        }
+
+        /* ── Fetch server preview ── */
+        async function doPreview() {
+            const s = sampleData();
+            const pcfg = previewCfg();
+            document.getElementById("loading").classList.remove("hidden");
+            try {
+                const res = await fetch("/api/preview", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: s.name,
+                        department: s.department,
+                        year: s.year,
+                        config: pcfg
+                    })
+                });
+                if (!res.ok) {
+                    console.error("Preview failed:", res.status);
+                    document.getElementById("loading").classList.add("hidden");
+                    return;
+                }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const img = document.getElementById("preview-img");
+                overlayEls().forEach(e => e.remove());
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    document.getElementById("loading").classList.add("hidden");
+                    buildOverlays();
+                };
+                img.src = url;
+            } catch(e) {
+                console.error("Preview error:", e);
+                document.getElementById("loading").classList.add("hidden");
+            }
+        }
+
+        /* ── Draggable overlays ── */
+        function overlayEls() { return document.querySelectorAll(".text-el, .sig-el"); }
+
+        function buildOverlays() {
+            overlayEls().forEach(e => e.remove());
+            const box = document.getElementById("canvas-box");
+
+            FIELDS.forEach(f => {
+                const c = config[f.key];
+                if (!c || c.x_pct === undefined) return;
+                const el = document.createElement("div");
+                el.className = "text-el";
+                el.id = "ov-" + f.key;
+                const text = c.sample_text || document.getElementById(f.sampleId).value || f.key;
+                el.textContent = text;
+                el.style.left      = (c.x_pct * 100) + "%";
+                el.style.top       = (c.y_pct * 100) + "%";
+                el.style.fontSize  = Math.max((c.font_size || 16) / 3, 4) + "px";
+                el.style.color     = c.color || "#5a4a2e";
+                // Match font-family if font_name is set
+                if (c.font_name) {
+                    el.style.fontFamily = '"' + c.font_name.replace(".TTF","").replace(".ttf","") + '", sans-serif';
+                }
+                box.appendChild(el);
+                makeDrag(el, f.key);
+            });
+
+            SIG_KEYS.forEach(k => {
+                const c = config[k];
+                if (!c || c.x_pct === undefined) return;
+                const el = document.createElement("div");
+                el.className = "sig-el";
+                el.id = "ov-" + k;
+                el.style.left = (c.x_pct * 100) + "%";
+                el.style.top  = (c.y_pct * 100) + "%";
+                if (c.file) {
+                    const img = document.createElement("img");
+                    img.src = "/signatures/" + c.file;
+                    img.style.width = (c.width_pct * 250) + "px";
+                    el.appendChild(img);
+                    const tag = document.createElement("div");
+                    tag.className = "sig-tag";
+                    tag.textContent = (config[k === "signature1" ? "signature1_label" : "signature2_label"] || "");
+                    el.appendChild(tag);
+                } else {
+                    const tag = document.createElement("div");
+                    tag.className = "sig-tag";
+                    tag.textContent = k === "signature1" ? "Sig 1" : "Sig 2";
+                    el.appendChild(tag);
+                }
+                box.appendChild(el);
+                makeDrag(el, k);
+            });
+
+            // Extra text overlays
+            config.extra_texts.forEach((text, index) => {
+                if (!text || text.x_pct === undefined) return;
+                const el = document.createElement("div");
+                el.className = "text-el";
+                el.id = "ov-extra-text-" + index;
+                el.textContent = text.sample_text || "Extra Text";
+                el.style.left = (text.x_pct * 100) + "%";
+                el.style.top = (text.y_pct * 100) + "%";
+                el.style.fontSize = Math.max((text.font_size || 16) / 3, 4) + "px";
+                el.style.color = text.color || "#5a4a2e";
+                if (text.font_name) {
+                    el.style.fontFamily = '"' + text.font_name.replace(".TTF","").replace(".ttf","") + '", sans-serif';
+                }
+                box.appendChild(el);
+                makeDrag(el, `extra_texts[${index}]`);
+            });
+
+            // Extra signature overlays
+            config.extra_signatures.forEach((sig, index) => {
+                if (!sig || sig.x_pct === undefined) return;
+                const el = document.createElement("div");
+                el.className = "sig-el";
+                el.id = "ov-extra-sig-" + index;
+                el.style.left = (sig.x_pct * 100) + "%";
+                el.style.top = (sig.y_pct * 100) + "%";
+                if (sig.file) {
+                    const img = document.createElement("img");
+                    img.src = "/signatures/" + sig.file;
+                    img.style.width = (sig.width_pct * 250) + "px";
+                    el.appendChild(img);
+                    const tag = document.createElement("div");
+                    tag.className = "sig-tag";
+                    tag.textContent = "Extra Sig";
+                    el.appendChild(tag);
+                } else {
+                    const tag = document.createElement("div");
+                    tag.className = "sig-tag";
+                    tag.textContent = "Extra Sig";
+                    el.appendChild(tag);
+                }
+                box.appendChild(el);
+                makeDrag(el, `extra_signatures[${index}]`);
+            });
+        }
+
+        /* ── Drag ── */
+        function makeDrag(el, key) {
+            let dragging = false;
+            el.addEventListener("mousedown", e => {
+                dragging = true;
+                el.classList.add("dragging");
+                e.preventDefault();
+            });
+            document.addEventListener("mousemove", e => {
+                if (!dragging) return;
+                const box = document.getElementById("canvas-box").getBoundingClientRect();
+                let xp = Math.max(0, Math.min(1, (e.clientX - box.left) / box.width));
+                let yp = Math.max(0, Math.min(1, (e.clientY - box.top) / box.height));
+                el.style.left = (xp * 100) + "%";
+                el.style.top  = (yp * 100) + "%";
+                // Handle nested keys
+                if (key.includes('[')) {
+                    const match = key.match(/(\w+)\[(\d+)\]/);
+                    if (match) {
+                        const arrayName = match[1];
+                        const index = parseInt(match[2]);
+                        config[arrayName][index].x_pct = xp;
+                        config[arrayName][index].y_pct = yp;
+                    }
+                } else {
+                    config[key].x_pct = xp;
+                    config[key].y_pct = yp;
+                }
+            });
+            document.addEventListener("mouseup", () => {
+                if (dragging) {
+                    dragging = false;
+                    el.classList.remove("dragging");
+                    doPreview();
+                }
+            });
+        }
+
+        /* ── Debounced preview ── */
+        let _pt = null;
+        function schedulePreview() {
+            if (_pt) clearTimeout(_pt);
+            _pt = setTimeout(doPreview, 500);
+        }
+
+        /* ── Signature upload ── */
+        async function uploadSignature(key) {
+            const cfgKey = key === "sig1" ? "signature1" : "signature2";
+            const inp = document.getElementById(key + "-file");
+            if (!inp.files[0]) return;
+            const fd = new FormData();
+            fd.append("file", inp.files[0]);
+            try {
+                const res = await fetch("/api/upload-signature", { method: "POST", body: fd });
+                const d = await res.json();
+                if (d.filename) {
+                    if (!config[cfgKey]) config[cfgKey] = {};
+                    config[cfgKey].file = d.filename;
+                    showSigFile(key, d.filename);
+                    doPreview();
+                }
+            } catch(e) { console.error(e); }
+        }
+        function showSigFile(key, filename) {
+            const el = document.getElementById(key + "-preview");
+            if (el) el.innerHTML = '<img src="/signatures/' + filename + '">';
+            const delRow = document.getElementById(key + "-delete-row");
+            if (delRow) delRow.style.display = "block";
+        }
+
+        async function deleteSignature(key) {
+            const cfgKey = key === "sig1" ? "signature1" : "signature2";
+            const oldFile = config[cfgKey]?.file;
+            if (config[cfgKey]) delete config[cfgKey].file;
+            const inp = document.getElementById(key + "-file");
+            if (inp) inp.value = "";
+            const pv = document.getElementById(key + "-preview");
+            if (pv) pv.innerHTML = "";
+            const delRow = document.getElementById(key + "-delete-row");
+            if (delRow) delRow.style.display = "none";
+            await fetch("/api/delete-signature", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename: oldFile })
+            });
+            doPreview();
+        }
+
+        /* ── Save ── */
+        async function saveConfig() {
+            readCfg();
+            try {
+                const res = await fetch("/api/config", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(config)
+                });
+                const d = await res.json();
+                const el = document.getElementById("status");
+                el.textContent = d.status == "ok" ? "Template saved!" : "Error!";
+                setTimeout(() => el.textContent = "", 2000);
+            } catch(e) { document.getElementById("status").textContent = "Failed!"; }
+        }
+
+        /* ── Add Extra Text ── */
+        function addExtraText() {
+            const index = config.extra_texts.length;
+            const newText = {
+                sample_text: "New Text",
+                font_size: 24,
+                color: "#5a4a2e",
+                x_pct: 0.5,
+                y_pct: 0.5
+            };
+            config.extra_texts.push(newText);
+            addExtraTextField(index, newText);
+            doPreview();
+        }
+
+        function addExtraTextField(index, text) {
+            const container = document.getElementById("extra-texts-container");
+            const card = document.createElement("div");
+            card.className = "field-card";
+            card.innerHTML = `
+                <h3>Extra Text ${index + 1}</h3>
+                <div class="row">
+                    <label>Text</label>
+                    <input type="text" id="extra-text-${index}-sample" value="${text.sample_text || ''}" oninput="schedulePreview()">
+                </div>
+                <div class="row">
+                    <label>Font</label>
+                    <select id="extra-text-${index}-font" onchange="schedulePreview()">
+                        <optgroup label="Bold">
+                            <option value="arialbd.ttf">Arial Bold</option>
+                            <option value="verdanab.ttf">Verdana Bold</option>
+                            <option value="timesbd.ttf">Times New Roman Bold</option>
+                            <option value="georgiab.ttf">Georgia Bold</option>
+                        </optgroup>
+                        <optgroup label="Cursive">
+                            <option value="brushsci.ttf">Brush Script</option>
+                            <option value="VIVALDII.TTF">Vivaldi</option>
+                            <option value="comic.ttf">Comic Sans MS</option>
+                            <option value="lhandw.ttf">Lucida Handwriting</option>
+                        </optgroup>
+                        <optgroup label="Bold Italic">
+                            <option value="arialbi.ttf">Arial Bold Italic</option>
+                            <option value="timesbi.ttf">Times New Roman Bold Italic</option>
+                            <option value="georgiabi.ttf">Georgia Bold Italic</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="row">
+                    <label>Size</label>
+                    <input type="number" id="extra-text-${index}-size" value="${text.font_size || 24}" min="1" max="72" oninput="schedulePreview()">
+                    <label>Color</label>
+                    <input type="color" id="extra-text-${index}-color" value="${text.color || '#5a4a2e'}" oninput="schedulePreview()">
+                </div>
+                <button class="btn-delete" onclick="removeExtraText(${index})">Remove</button>
+            `;
+            container.appendChild(card);
+            setVal(`extra-text-${index}-font`, text.font_name ?? null);
+        }
+
+        function removeExtraText(index) {
+            config.extra_texts.splice(index, 1);
+            populateSidebar(); // Rebuild all
+            doPreview();
+        }
+
+        /* ── Add Extra Signature ── */
+        function addExtraSignature() {
+            const index = config.extra_signatures.length;
+            const newSig = {
+                width_pct: 0.1,
+                x_pct: 0.5,
+                y_pct: 0.5
+            };
+            config.extra_signatures.push(newSig);
+            addExtraSignatureField(index, newSig);
+            doPreview();
+        }
+
+        function addExtraSignatureField(index, sig) {
+            const container = document.getElementById("extra-signatures-container");
+            const card = document.createElement("div");
+            card.className = "field-card";
+            card.innerHTML = `
+                <h3>Extra Signature ${index + 1}</h3>
+                <div class="row">
+                    <label>Upload</label>
+                    <input type="file" id="extra-sig-${index}-file" accept="image/*" onchange="uploadExtraSignature(${index})">
+                </div>
+                <div class="row">
+                    <label>W%</label>
+                    <input type="number" id="extra-sig-${index}-width" value="${sig.width_pct || 0.10}" min="0.02" max="0.40" step="0.01" oninput="schedulePreview()">
+                    <label>H%</label>
+                    <input type="number" id="extra-sig-${index}-height" value="${sig.height_pct || ''}" min="0.02" max="0.40" step="0.01" placeholder="auto" oninput="schedulePreview()">
+                </div>
+                <div id="extra-sig-${index}-preview"></div>
+                <button class="btn-delete" onclick="removeExtraSignature(${index})">Remove</button>
+            `;
+            container.appendChild(card);
+            if (sig.file) showExtraSigFile(index, sig.file);
+        }
+
+        function removeExtraSignature(index) {
+            const oldFile = config.extra_signatures[index]?.file;
+            if (oldFile) {
+                fetch("/api/delete-signature", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ filename: oldFile })
+                });
+            }
+            config.extra_signatures.splice(index, 1);
+            populateSidebar(); // Rebuild all
+            doPreview();
+        }
+
+        async function uploadExtraSignature(index) {
+            const inp = document.getElementById(`extra-sig-${index}-file`);
+            if (!inp.files[0]) return;
+            const fd = new FormData();
+            fd.append("file", inp.files[0]);
+            try {
+                const res = await fetch("/api/upload-signature", { method: "POST", body: fd });
+                const d = await res.json();
+                if (d.filename) {
+                    config.extra_signatures[index].file = d.filename;
+                    showExtraSigFile(index, d.filename);
+                    doPreview();
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        function showExtraSigFile(index, filename) {
+            const el = document.getElementById(`extra-sig-${index}-preview`);
+            if (el) el.innerHTML = '<img src="/signatures/' + filename + '" style="max-width: 100px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">';
+        }
+    </script>
+</body>
+</html>

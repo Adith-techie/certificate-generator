@@ -62,9 +62,8 @@
     <div class="layout">
         <div class="sidebar">
             <h2>CSV Data</h2>
-            <textarea id="csv-data">#,Name,Department,Year of Study
-1,Example Person,CSE,4th Year</textarea>
-            <p class="info">Columns needed: <b>Name</b>, <b>Department</b>, <b>Year of Study</b></p>
+            <textarea id="csv-data"></textarea>
+            <p class="info">First column must be <b>Name</b>. Other columns should match configured extra text fields. Customize in the Editor.</p>
 
             <div class="file-row">
                 <label>Or upload file:</label>
@@ -85,7 +84,7 @@
             <div id="count"></div>
             <table id="table">
                 <thead>
-                    <tr><th>#</th><th>Name</th><th>Department</th><th>Year</th></tr>
+                    <tr id="header-row"><th>#</th></tr>
                 </thead>
                 <tbody id="tbody"></tbody>
             </table>
@@ -93,79 +92,142 @@
     </div>
 
     <script>
-        // Load existing CSV on page load
-        window.addEventListener("DOMContentLoaded", () => {
-            loadCSV(document.getElementById("csv-data").value);
-        });
+        let config = {};
+        let csvData = [];
+        let headers = [];
 
-        document.getElementById("csv-file").addEventListener("change", (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                document.getElementById("csv-data").value = ev.target.result;
-                loadCSV(ev.target.result);
-            };
-            reader.readAsText(file);
-        });
+        async function loadConfig() {
+            try {
+                const res = await fetch("/api/config");
+                if (res.ok) {
+                    config = await res.json();
+                    generateCSVTemplate();
+                }
+            } catch(e) {
+                console.warn("Could not load config:", e);
+            }
+        }
 
-        document.getElementById("load-btn").addEventListener("click", () => {
-            loadCSV(document.getElementById("csv-data").value);
-        });
+        function generateCSVTemplate() {
+            const mainFields = config.custom_fields || [];
+            const extraTexts = config.extra_texts || [];
+            
+            const cols = mainFields.map(f => f.key);
+            extraTexts.forEach((text, idx) => {
+                cols.push(`extra_text_${idx + 1}`);
+            });
+            
+            const header = cols.join(",");
+            const example = cols.map(col => {
+                if (col === "name") return "Example Person";
+                if (col === "organization") return "Example Org";
+                if (col === "role") return "Example Role";
+                return "Extra Text";
+            }).join(",");
+            
+            document.getElementById("csv-data").value = header + "\n" + example;
+        }
 
-        document.getElementById("generate-btn").addEventListener("click", generateAll);
+        function parseCSV(text) {
+            const lines = text.trim().split("\n");
+            if (lines.length === 0) return [];
+            
+            headers = lines[0].split(",").map(h => h.trim());
+            const rows = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                const values = line.split(",").map(v => v.trim());
+                const row = {};
+                headers.forEach((h, idx) => {
+                    row[h] = values[idx] || "";
+                });
+                rows.push(row);
+            }
+            
+            return rows;
+        }
 
-        function loadCSV(data) {
-            const rows = data.trim().split("\n");
-            if (rows.length < 2) return;
-            const headers = rows[0].split(",").map(h => h.trim());
+        function displayTable() {
+            const headerRow = document.getElementById("header-row");
+            headerRow.innerHTML = "<th>#</th>";
+            
+            headers.forEach(h => {
+                const th = document.createElement("th");
+                th.textContent = h.replace(/_/g, " ");
+                headerRow.appendChild(th);
+            });
+            
             const tbody = document.getElementById("tbody");
             tbody.innerHTML = "";
-            let count = 0;
-            for (let i = 1; i < rows.length; i++) {
-                const vals = rows[i].split(",");
-                const obj = {};
-                headers.forEach((h, idx) => obj[h] = (vals[idx] || "").trim());
-                if (!obj.Name) continue;
-                count++;
+            
+            csvData.forEach((row, idx) => {
                 const tr = document.createElement("tr");
-                tr.innerHTML = `<td>${count}</td><td>${obj.Name}</td><td>${obj.Department || ""}</td><td>${obj["Year of Study"] || ""}</td>`;
+                tr.innerHTML = `<td>${idx + 1}</td>`;
+                headers.forEach(h => {
+                    const td = document.createElement("td");
+                    td.textContent = row[h] || "";
+                    tr.appendChild(td);
+                });
                 tbody.appendChild(tr);
-            }
-            document.getElementById("count").textContent = `${count} participants loaded`;
-        }
-
-        async function generateAll() {
-            const csvData = document.getElementById("csv-data").value;
-            const status = document.getElementById("status");
-            const btn = document.getElementById("generate-btn");
-            status.textContent = "Generating certificates...";
-            btn.disabled = true;
-
-            const fd = new FormData();
-            fd.append("csv_data", csvData);
-
-            const res = await fetch("/api/generate-bulk", {
-                method: "POST",
-                body: fd,
             });
-
-            btn.disabled = false;
-            if (res.ok) {
-                status.textContent = "Done! Downloading ZIP...";
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "certificates.zip";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            } else {
-                const err = await res.json();
-                status.textContent = `Error: ${err.error}`;
-            }
+            
+            document.getElementById("count").textContent = `${csvData.length} record(s)`;
         }
+
+        document.getElementById("load-btn").addEventListener("click", async () => {
+            const file = document.getElementById("csv-file").files[0];
+            if (file) {
+                const text = await file.text();
+                document.getElementById("csv-data").value = text;
+            }
+            
+            csvData = parseCSV(document.getElementById("csv-data").value);
+            displayTable();
+        });
+
+        document.getElementById("csv-data").addEventListener("change", () => {
+            csvData = parseCSV(document.getElementById("csv-data").value);
+            displayTable();
+        });
+
+        document.getElementById("generate-btn").addEventListener("click", async () => {
+            if (csvData.length === 0) {
+                alert("No CSV data loaded!");
+                return;
+            }
+            
+            const statusEl = document.getElementById("status");
+            statusEl.textContent = "Generating certificates...";
+            
+            try {
+                const res = await fetch("/api/generate-bulk", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ records: csvData })
+                });
+                
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "certificates.zip";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    statusEl.textContent = "✓ Certificates generated and downloaded!";
+                } else {
+                    const err = await res.json();
+                    statusEl.textContent = `Error: ${err.error}`;
+                }
+            } catch(e) {
+                statusEl.textContent = `Error: ${e.message}`;
+            }
+        });
+
+        window.addEventListener("DOMContentLoaded", loadConfig);
     </script>
 </body>
 </html>

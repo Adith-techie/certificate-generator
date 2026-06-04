@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Certificate Generation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0ece3; }
+        .header {
+            background: #8b6914; color: #fff; padding: 0.8rem 1.5rem;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header h1 { font-size: 1.2rem; }
+        .header a { color: #fff; text-decoration: none; font-size: 0.85rem; opacity: 0.8; }
+        .header a:hover { opacity: 1; }
+        .layout { display: flex; height: calc(100vh - 48px); }
+
+        .sidebar {
+            width: 340px; background: #fff; padding: 1.2rem;
+            overflow-y: auto; border-right: 1px solid #ddd;
+        }
+        .sidebar h2 { font-size: 0.95rem; color: #8b6914; margin-bottom: 0.8rem; padding-bottom: 0.4rem; border-bottom: 2px solid #c9a227; }
+        textarea {
+            width: 100%; height: 250px; font-family: monospace; font-size: 0.8rem;
+            padding: 0.5rem; border: 1px solid #ccc; border-radius: 5px;
+            resize: vertical;
+        }
+        .btn-row { display: flex; gap: 0.5rem; margin-top: 0.8rem; }
+        .btn {
+            flex: 1; padding: 0.6rem 1rem; border: none; border-radius: 5px;
+            font-size: 0.85rem; cursor: pointer; font-weight: 600; text-align: center;
+        }
+        .btn-primary { background: #8b6914; color: #fff; }
+        .btn-primary:hover { background: #6d5210; }
+        .btn-secondary { background: #c9a227; color: #fff; }
+        .btn-secondary:hover { background: #b8911f; }
+        .file-row { margin-top: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
+        .file-row label { font-size: 0.8rem; color: #5a4a2e; font-weight: 600; }
+        .file-row input { font-size: 0.8rem; }
+
+        .info { font-size: 0.78rem; color: #6b5a3e; margin-top: 0.5rem; line-height: 1.4; }
+
+        .table-area {
+            flex: 1; padding: 1.2rem; overflow: auto;
+        }
+        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
+        th { background: #8b6914; color: #fff; font-size: 0.8rem; text-align: left; padding: 0.6rem 1rem; }
+        td { padding: 0.5rem 1rem; font-size: 0.82rem; border-bottom: 1px solid #eee; }
+        tr:nth-child(even) { background: #f8f6ef; }
+        tr:hover { background: #f0ece3; }
+        #count { font-size: 0.85rem; color: #6b5a3e; margin-bottom: 0.5rem; }
+        #status { font-size: 0.85rem; color: #2d7a2d; margin-top: 0.5rem; min-height: 1.2em; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Bulk Certificate Generation</h1>
+        <a href="/">Back to Dashboard</a>
+    </div>
+
+    <div class="layout">
+        <div class="sidebar">
+            <h2>CSV Data</h2>
+            <textarea id="csv-data">Name,Organization,Role
+Example Person,Example Org,Example Role</textarea>
+            <p class="info">First column must be <b>Name</b>. Other columns can be any field names. Customize fields in the Editor.</p>
+
+            <div class="file-row">
+                <label>Or upload file:</label>
+                <input type="file" id="csv-file" accept=".csv">
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-secondary" id="load-btn">Load CSV</button>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" id="generate-btn">Generate All</button>
+            </div>
+
+            <div id="status"></div>
+        </div>
+
+        <div class="table-area">
+            <div id="count"></div>
+            <table id="table">
+                <thead>
+                    <tr><th>#</th><th>Name</th><th>Department</th><th>Year</th></tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let config = {};
+
+        async function loadConfig() {
+            try {
+                const res = await fetch("/api/config");
+                if (res.ok) {
+                    config = await res.json();
+                }
+            } catch(e) {
+                console.warn("Could not load config:", e);
+            }
+        }
+
+        function getHeaderSuggestion() {
+            const fields = config.custom_fields || [];
+            const headers = fields.map(f => f.label).join(",");
+            return headers || "Name,Organization,Role";
+        }
+
+        window.addEventListener("DOMContentLoaded", () => {
+            loadConfig();
+            const suggestion = getHeaderSuggestion();
+            document.getElementById("csv-data").value = suggestion + "\nExample Person,Example Org,Example Role";
+        });
+
+        document.getElementById("csv-file").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                document.getElementById("csv-data").value = ev.target.result;
+                loadCSV(ev.target.result);
+            };
+            reader.readAsText(file);
+        });
+
+        document.getElementById("load-btn").addEventListener("click", () => {
+            loadCSV(document.getElementById("csv-data").value);
+        });
+
+        document.getElementById("generate-btn").addEventListener("click", generateAll);
+
+        function loadCSV(data) {
+            const rows = data.trim().split("\n");
+            if (rows.length < 2) return;
+            const headers = rows[0].split(",").map(h => h.trim());
+            const tbody = document.getElementById("tbody");
+            tbody.innerHTML = "";
+            let count = 0;
+            
+            for (let i = 1; i < rows.length; i++) {
+                const vals = rows[i].split(",");
+                const obj = {};
+                headers.forEach((h, idx) => obj[h] = (vals[idx] || "").trim());
+                
+                if (!obj[headers[0]]) continue;
+                count++;
+                
+                const tr = document.createElement("tr");
+                let cells = `<td>${count}</td>`;
+                headers.forEach(h => {
+                    cells += `<td>${obj[h] || ""}</td>`;
+                });
+                tr.innerHTML = cells;
+                tbody.appendChild(tr);
+            }
+            
+            document.getElementById("count").textContent = `${count} records loaded`;
+            
+            const thead = document.getElementById("table").querySelector("thead tr");
+            thead.innerHTML = "<th>#</th>";
+            headers.forEach(h => {
+                thead.innerHTML += `<th>${h}</th>`;
+            });
+        }
+
+        async function generateAll() {
+            const csvData = document.getElementById("csv-data").value;
+            const status = document.getElementById("status");
+            const btn = document.getElementById("generate-btn");
+            status.textContent = "Generating certificates...";
+            btn.disabled = true;
+
+            const fd = new FormData();
+            fd.append("csv_data", csvData);
+
+            const res = await fetch("/api/generate-bulk", {
+                method: "POST",
+                body: fd,
+            });
+
+            btn.disabled = false;
+            if (res.ok) {
+                status.textContent = "Done! Downloading ZIP...";
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "certificates.zip";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } else {
+                const err = await res.json();
+                status.textContent = `Error: ${err.error}`;
+            }
+        }
+    </script>
+</body>
+</html>
