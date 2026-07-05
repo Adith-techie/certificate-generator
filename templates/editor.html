@@ -115,7 +115,16 @@
 
     <div class="layout">
         <div class="sidebar">
-            <h2 style="margin-top:0">Text Field</h2>
+            <h2 style="margin-top:0">Certificate Template</h2>
+            <div class="field-card">
+                <div class="row">
+                    <label>Upload</label>
+                    <input type="file" id="template-file" accept="image/png,image/jpeg" onchange="uploadTemplate()">
+                </div>
+                <div class="status" id="template-status"></div>
+            </div>
+            
+            <h2>Text Field</h2>
             <div class="field-card">
                 <div class="row">
                     <label>Placeholder</label>
@@ -543,6 +552,31 @@
     function schedulePreview() {
         if (_pt) clearTimeout(_pt);
         _pt = setTimeout(doPreview, 500);
+    }
+
+    async function uploadTemplate() {
+        const inp = document.getElementById("template-file");
+        if (!inp.files[0]) return;
+        const fd = new FormData();
+        fd.append("file", inp.files[0]);
+        try {
+            const res = await fetch("/api/upload-template", { method: "POST", body: fd });
+            const d = await res.json();
+            const el = document.getElementById("template-status");
+            if (d.status === "ok") {
+                el.textContent = "Template uploaded! Refreshing preview...";
+                el.style.color = "#2d7a2d";
+                setTimeout(() => el.textContent = "", 3000);
+                doPreview();
+            } else {
+                el.textContent = d.error || "Upload failed!";
+                el.style.color = "#c0392b";
+                setTimeout(() => el.textContent = "", 3000);
+            }
+        } catch(e) {
+            document.getElementById("template-status").textContent = "Failed!";
+            document.getElementById("template-status").style.color = "#c0392b";
+        }
     }
 
     async function uploadSignature(key) {

@@ -159,7 +159,7 @@ def get_image_dimensions(path):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("landing.html")
 
 @app.route("/editor")
 def editor():
@@ -274,6 +274,28 @@ def upload_signature():
     f.save(path)
     w, h = get_image_dimensions(path)
     return jsonify({"filename": filename, "width": w, "height": h})
+
+@app.route("/api/upload-template", methods=["POST"])
+def upload_template():
+    if "file" not in request.files:
+        return jsonify({"error": "No file"}), 400
+    f = request.files["file"]
+    if f.filename == "":
+        return jsonify({"error": "Empty filename"}), 400
+    
+    # Save the uploaded template
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in [".png", ".jpg", ".jpeg"]:
+        return jsonify({"error": "Unsupported file type. Use PNG or JPG."}), 400
+    
+    template_path = os.path.join(BASE_DIR, f"certificate_template{ext}")
+    f.save(template_path)
+    
+    # Update global TEMPLATE_IMAGE variable
+    global TEMPLATE_IMAGE
+    TEMPLATE_IMAGE = template_path
+    
+    return jsonify({"status": "ok", "template_path": template_path})
 
 @app.route("/api/delete-signature", methods=["POST"])
 def delete_signature():
