@@ -106,8 +106,8 @@ def _apply_text_and_signatures(page, config, fields_data, extra_texts=None):
     for field in custom_fields:
         field_key = field["key"]
         text_value = fields_data.get(field_key, field.get("sample_text", ""))
-        if field_key in config and "x_pct" in config[field_key]:
-            _draw_text(page, text_value, config[field_key], w, h)
+        if "x_pct" in field:
+            _draw_text(page, text_value, field, w, h)
 
     # Extra text fields (legacy support)
     for i, extra_text in enumerate(config.get("extra_texts", [])):
