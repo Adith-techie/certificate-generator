@@ -1,233 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bulk Certificate Generation</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0ece3; }
-        .header {
-            background: #8b6914; color: #fff; padding: 0.8rem 1.5rem;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .header h1 { font-size: 1.2rem; }
-        .header a { color: #fff; text-decoration: none; font-size: 0.85rem; opacity: 0.8; }
-        .header a:hover { opacity: 1; }
-        .layout { display: flex; height: calc(100vh - 48px); }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bulk Generation — Certificate Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fafafa; --surface: #fff; --surface-alt: #f4f5f7;
+  --border: #e2e8f0; --border-strong: #cbd5e1;
+  --text: #0f172a; --text-secondary: #64748b; --text-muted: #94a3b8;
+  --accent: #b45309; --accent-hover: #92400e; --accent-light: #fef3c7;
+  --danger: #dc2626; --success: #16a34a;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+  --shadow: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.05);
+  --radius: 10px; --radius-lg: 16px;
+}
+[data-theme=dark] {
+  --bg: #0c0e14; --surface: #161923; --surface-alt: #1e2130;
+  --border: #2a2e3d; --border-strong: #3a3f52;
+  --text: #e8ecf4; --text-secondary: #94a3b8; --text-muted: #64748b;
+  --accent: #f59e0b; --accent-hover: #fbbf24; --accent-light: rgba(245,158,11,.1);
+  --danger: #f87171; --success: #4ade80;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+  --shadow: 0 4px 6px -1px rgba(0,0,0,.4), 0 2px 4px -2px rgba(0,0,0,.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.5), 0 4px 6px -4px rgba(0,0,0,.4);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; -webkit-font-smoothing:antialiased; }
 
-        .sidebar {
-            width: 340px; background: #fff; padding: 1.2rem;
-            overflow-y: auto; border-right: 1px solid #ddd;
-        }
-        .sidebar h2 { font-size: 0.95rem; color: #8b6914; margin-bottom: 0.8rem; padding-bottom: 0.4rem; border-bottom: 2px solid #c9a227; }
-        textarea {
-            width: 100%; height: 250px; font-family: monospace; font-size: 0.8rem;
-            padding: 0.5rem; border: 1px solid #ccc; border-radius: 5px;
-            resize: vertical;
-        }
-        .btn-row { display: flex; gap: 0.5rem; margin-top: 0.8rem; }
-        .btn {
-            flex: 1; padding: 0.6rem 1rem; border: none; border-radius: 5px;
-            font-size: 0.85rem; cursor: pointer; font-weight: 600; text-align: center;
-        }
-        .btn-primary { background: #8b6914; color: #fff; }
-        .btn-primary:hover { background: #6d5210; }
-        .btn-secondary { background: #c9a227; color: #fff; }
-        .btn-secondary:hover { background: #b8911f; }
-        .file-row { margin-top: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
-        .file-row label { font-size: 0.8rem; color: #5a4a2e; font-weight: 600; }
-        .file-row input { font-size: 0.8rem; }
+.header { background:var(--surface); border-bottom:1px solid var(--border); padding:.7rem 1.5rem; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; backdrop-filter:blur(12px); }
+.header h1 { font-size:1rem; font-weight:600; letter-spacing:-.01em; }
+.header-left { display:flex; align-items:center; gap:1rem; }
+.header a { color:var(--text-secondary); text-decoration:none; font-size:.82rem; font-weight:500; padding:.45rem .8rem; border-radius:6px; transition:all .15s; border:1px solid var(--border); }
+.header a:hover { color:var(--text); background:var(--surface-alt); border-color:var(--border-strong); }
+.theme-toggle { width:34px; height:34px; border-radius:8px; border:1px solid var(--border); background:var(--surface); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; color:var(--text-secondary); }
+.theme-toggle:hover { background:var(--surface-alt); color:var(--text); }
+.theme-toggle svg { width:16px; height:16px; }
+.sun-icon { display:none; } .moon-icon { display:block; }
+[data-theme=dark] .sun-icon { display:block; } [data-theme=dark] .moon-icon { display:none; }
 
-        .info { font-size: 0.78rem; color: #6b5a3e; margin-top: 0.5rem; line-height: 1.4; }
-
-        .table-area {
-            flex: 1; padding: 1.2rem; overflow: auto;
-        }
-        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
-        th { background: #8b6914; color: #fff; font-size: 0.8rem; text-align: left; padding: 0.6rem 1rem; }
-        td { padding: 0.5rem 1rem; font-size: 0.82rem; border-bottom: 1px solid #eee; }
-        tr:nth-child(even) { background: #f8f6ef; }
-        tr:hover { background: #f0ece3; }
-        #count { font-size: 0.85rem; color: #6b5a3e; margin-bottom: 0.5rem; }
-        #status { font-size: 0.85rem; color: #2d7a2d; margin-top: 0.5rem; min-height: 1.2em; }
-    </style>
+.layout { display:flex; height:calc(100vh - 50px); }
+.sidebar { width:360px; background:var(--surface); padding:1.25rem; overflow-y:auto; border-right:1px solid var(--border); }
+.sidebar h2 { font-size:.78rem; font-weight:600; margin-bottom:.75rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); }
+textarea { width:100%; height:200px; font-family:'SF Mono','Fira Code','Cascadia Code',monospace; font-size:.78rem; padding:.65rem .75rem; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); resize:vertical; transition:all .15s; line-height:1.6; }
+textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-light); }
+.btn { display:block; padding:.6rem 1rem; border:none; border-radius:8px; font-size:.82rem; cursor:pointer; font-weight:600; text-decoration:none; text-transform:uppercase; letter-spacing:.03em; transition:all .15s; text-align:center; }
+.btn-row { display:flex; gap:.5rem; margin-top:.75rem; }
+.btn-primary { background:var(--text); color:var(--bg); flex:1; }
+.btn-primary:hover { transform:translateY(-1px); box-shadow:var(--shadow); }
+.btn-secondary { background:var(--accent); color:#fff; flex:1; }
+.btn-secondary:hover { background:var(--accent-hover); transform:translateY(-1px); box-shadow:var(--shadow); }
+.file-row { margin-top:.75rem; display:flex; align-items:center; gap:.5rem; }
+.file-row label { font-size:.72rem; color:var(--text-muted); font-weight:500; text-transform:uppercase; letter-spacing:.03em; }
+.file-row input { font-size:.8rem; border:1px solid var(--border); border-radius:6px; padding:.35rem .5rem; background:var(--bg); color:var(--text); }
+.info { font-size:.72rem; color:var(--text-muted); margin-top:.5rem; line-height:1.5; }
+#status { font-size:.82rem; color:var(--text-secondary); margin-top:.5rem; min-height:1.2em; font-weight:500; }
+.table-area { flex:1; padding:1.25rem; overflow:auto; }
+#count { font-size:.82rem; color:var(--text-muted); margin-bottom:.75rem; font-weight:500; }
+table { width:100%; border-collapse:collapse; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+thead { background:var(--surface-alt); }
+th { font-size:.72rem; text-align:left; padding:.65rem 1rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); border-bottom:1px solid var(--border); }
+td { padding:.6rem 1rem; font-size:.82rem; border-bottom:1px solid var(--border); color:var(--text-secondary); }
+tr:last-child td { border-bottom:none; }
+tr:hover { background:var(--surface-alt); }
+</style>
 </head>
 <body>
-    <div class="header">
-        <h1>Bulk Certificate Generation</h1>
-        <a href="/">Back to Dashboard</a>
+<div class="header">
+  <div class="header-left">
+    <h1>Bulk Certificate Generation</h1>
+    <a href="/">← Back</a>
+  </div>
+  <button onclick="toggleTheme()" class="theme-toggle" aria-label="Toggle dark mode">
+    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+  </button>
+</div>
+<div class="layout">
+  <div class="sidebar">
+    <h2>CSV Data</h2>
+    <textarea id="csv-data"></textarea>
+    <p class="info">First row = column headers. First column = <strong>name</strong>.</p>
+    <div class="file-row">
+      <label>Upload:</label>
+      <input type="file" id="csv-file" accept=".csv">
     </div>
-
-    <div class="layout">
-        <div class="sidebar">
-            <h2>CSV Data</h2>
-            <textarea id="csv-data"></textarea>
-            <p class="info">First column must be <b>Name</b>. Other columns should match configured extra text fields. Customize in the Editor.</p>
-
-            <div class="file-row">
-                <label>Or upload file:</label>
-                <input type="file" id="csv-file" accept=".csv">
-            </div>
-
-            <div class="btn-row">
-                <button class="btn btn-secondary" id="load-btn">Load CSV</button>
-            </div>
-            <div class="btn-row">
-                <button class="btn btn-primary" id="generate-btn">Generate All</button>
-            </div>
-
-            <div id="status"></div>
-        </div>
-
-        <div class="table-area">
-            <div id="count"></div>
-            <table id="table">
-                <thead>
-                    <tr id="header-row"><th>#</th></tr>
-                </thead>
-                <tbody id="tbody"></tbody>
-            </table>
-        </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="load-btn">Load CSV</button>
     </div>
-
-    <script>
-        let config = {};
-        let csvData = [];
-        let headers = [];
-
-        async function loadConfig() {
-            try {
-                const res = await fetch("/api/config");
-                if (res.ok) {
-                    config = await res.json();
-                    generateCSVTemplate();
-                }
-            } catch(e) {
-                console.warn("Could not load config:", e);
-            }
-        }
-
-        function generateCSVTemplate() {
-            const mainFields = config.custom_fields || [];
-            const extraTexts = config.extra_texts || [];
-            
-            const cols = mainFields.map(f => f.key);
-            extraTexts.forEach((text, idx) => {
-                cols.push(`extra_text_${idx + 1}`);
-            });
-            
-            const header = cols.join(",");
-            const example = cols.map(col => {
-                if (col === "name") return "Example Person";
-                if (col === "organization") return "Example Org";
-                if (col === "role") return "Example Role";
-                return "Extra Text";
-            }).join(",");
-            
-            document.getElementById("csv-data").value = header + "\n" + example;
-        }
-
-        function parseCSV(text) {
-            const lines = text.trim().split("\n");
-            if (lines.length === 0) return [];
-            
-            headers = lines[0].split(",").map(h => h.trim());
-            const rows = [];
-            
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
-                const values = line.split(",").map(v => v.trim());
-                const row = {};
-                headers.forEach((h, idx) => {
-                    row[h] = values[idx] || "";
-                });
-                rows.push(row);
-            }
-            
-            return rows;
-        }
-
-        function displayTable() {
-            const headerRow = document.getElementById("header-row");
-            headerRow.innerHTML = "<th>#</th>";
-            
-            headers.forEach(h => {
-                const th = document.createElement("th");
-                th.textContent = h.replace(/_/g, " ");
-                headerRow.appendChild(th);
-            });
-            
-            const tbody = document.getElementById("tbody");
-            tbody.innerHTML = "";
-            
-            csvData.forEach((row, idx) => {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `<td>${idx + 1}</td>`;
-                headers.forEach(h => {
-                    const td = document.createElement("td");
-                    td.textContent = row[h] || "";
-                    tr.appendChild(td);
-                });
-                tbody.appendChild(tr);
-            });
-            
-            document.getElementById("count").textContent = `${csvData.length} record(s)`;
-        }
-
-        document.getElementById("load-btn").addEventListener("click", async () => {
-            const file = document.getElementById("csv-file").files[0];
-            if (file) {
-                const text = await file.text();
-                document.getElementById("csv-data").value = text;
-            }
-            
-            csvData = parseCSV(document.getElementById("csv-data").value);
-            displayTable();
-        });
-
-        document.getElementById("csv-data").addEventListener("change", () => {
-            csvData = parseCSV(document.getElementById("csv-data").value);
-            displayTable();
-        });
-
-        document.getElementById("generate-btn").addEventListener("click", async () => {
-            if (csvData.length === 0) {
-                alert("No CSV data loaded!");
-                return;
-            }
-            
-            const statusEl = document.getElementById("status");
-            statusEl.textContent = "Generating certificates...";
-            
-            try {
-                const res = await fetch("/api/generate-bulk", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ records: csvData })
-                });
-                
-                if (res.ok) {
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "certificates.zip";
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    statusEl.textContent = "✓ Certificates generated and downloaded!";
-                } else {
-                    const err = await res.json();
-                    statusEl.textContent = `Error: ${err.error}`;
-                }
-            } catch(e) {
-                statusEl.textContent = `Error: ${e.message}`;
-            }
-        });
-
-        window.addEventListener("DOMContentLoaded", loadConfig);
-    </script>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="generate-btn">Generate All →</button>
+    </div>
+    <div id="status"></div>
+  </div>
+  <div class="table-area">
+    <div id="count"></div>
+    <table>
+      <thead><tr id="header-row"><th>#</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+<script>
+let config={},csvData=[],headers=[];
+async function loadConfig(){try{const r=await fetch("/api/config");if(r.ok){config=await r.json();genCSV()}}catch(e){console.warn(e)}}
+function genCSV(){const f=config.custom_fields||[],c=f.map(x=>x.key),h=c.join(","),e=c.map(x=>{if(x==="name")return"Example Person";if(x==="organization")return"Example Org";if(x==="role")return"Example Role";return(f.find(y=>y.key===x)||{}).sample_text||"Value"}).join(",");document.getElementById("csv-data").value=h+"\n"+e}
+function parseCSV(t){const rows=[],lines=[];let cur="",q=false;for(let i=0;i<t.length;i++){const c=t[i];if(c==='"'){q=!q;cur+=c}else if(c==='\n'&&!q){lines.push(cur);cur=""}else cur+=c}if(cur.trim())lines.push(cur);if(!lines.length)return[];headers=parseLine(lines[0]);for(let i=1;i<lines.length;i++){const l=lines[i].trim();if(!l)continue;const v=parseLine(l),row={};headers.forEach((h,idx)=>{let val=v[idx]||"";if(val.startsWith('"')&&val.endsWith('"'))val=val.slice(1,-1).replace(/""/g,'"');row[h]=val.trim()});rows.push(row)}return rows}
+function parseLine(l){const r=[];let cur="",q=false;for(let i=0;i<l.length;i++){const c=l[i];if(c==='"'){if(q&&i+1<l.length&&l[i+1]==='"'){cur+='"';i++}else q=!q}else if(c===','&&!q){r.push(cur);cur=""}else cur+=c}r.push(cur);return r}
+function display(){const hr=document.getElementById("header-row");hr.innerHTML="<th>#</th>";headers.forEach(h=>{const th=document.createElement("th");th.textContent=h.replace(/_/g," ");hr.appendChild(th)});const tb=document.getElementById("tbody");tb.innerHTML="";csvData.forEach((r,i)=>{const tr=document.createElement("tr");tr.innerHTML="<td>"+(i+1)+"</td>";headers.forEach(h=>{const td=document.createElement("td");td.textContent=r[h]||"";tr.appendChild(td)});tb.appendChild(tr)});document.getElementById("count").textContent=csvData.length+" record(s)"}
+document.getElementById("load-btn").addEventListener("click",async()=>{const f=document.getElementById("csv-file").files[0];if(f){const t=await f.text();document.getElementById("csv-data").value=t}csvData=parseCSV(document.getElementById("csv-data").value);display()});
+document.getElementById("csv-data").addEventListener("change",()=>{csvData=parseCSV(document.getElementById("csv-data").value);display()});
+document.getElementById("generate-btn").addEventListener("click",async()=>{try{if(!csvData.length){alert("No CSV data loaded!");return}const el=document.getElementById("status");el.textContent="Generating...";const r=await fetch("/api/generate-bulk",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records:csvData})});if(r.ok){const b=await r.blob(),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="certificates.zip";document.body.appendChild(a);a.click();document.body.removeChild(a);el.textContent="✓ Generated!";el.style.color="var(--success)"}else{const e=await r.json();el.textContent="Error: "+e.error;el.style.color="var(--danger)"}}catch(e){console.error(e);document.getElementById("status").textContent="An unexpected error occurred."}})
+function toggleTheme(){var d=document.documentElement;var t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);localStorage.setItem('theme',t)}
+var saved=localStorage.getItem('theme');if(saved){document.documentElement.setAttribute('data-theme',saved)}else if(window.matchMedia('(prefers-color-scheme:dark)').matches){document.documentElement.setAttribute('data-theme','dark')}
+window.addEventListener("DOMContentLoaded",()=>{try{loadConfig()}catch(e){console.error(e)}})
+</script>
 </body>
 </html>
